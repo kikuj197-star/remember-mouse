@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "com.remembermouse.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "MinecraftMixin",
+    "MouseHandlerMixin",
+    "ScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

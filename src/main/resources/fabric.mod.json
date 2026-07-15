@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "remember-mouse",
+  "version": "${version}",
+  "name": "Remember Mouse",
+  "description": "Remembers cursor position when closing inventory/container UIs. Restores position on reopen. Supports multi-page backpacks — mouse stays on page-turn buttons.",
+  "authors": ["cookie"],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/remember-mouse/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.remembermouse.RememberMouse"]
+  },
+  "mixins": [
+    "remember-mouse.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": ">=26.1",
+    "java": ">=25"
+  }
+}
