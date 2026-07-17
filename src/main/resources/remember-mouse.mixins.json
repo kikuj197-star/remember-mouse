@@ -3,6 +3,7 @@
   "package": "com.remembermouse.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
+    "ClientPacketListenerMixin",
     "MinecraftMixin",
     "MouseHandlerMixin",
     "ScreenMixin"

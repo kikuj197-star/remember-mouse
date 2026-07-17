@@ -1,6 +1,7 @@
 package com.remembermouse.mixin;
 
 import com.remembermouse.RememberMouse;
+import com.remembermouse.RememberMouseConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -19,6 +20,11 @@ public abstract class ScreenMixin {
 
     @Inject(method = "init", at = @At("TAIL"))
     private void afterInit(CallbackInfo ci) {
+        RememberMouseConfig cfg = RememberMouse.config;
+        if (!cfg.enabled) {
+            return;
+        }
+
         if (!RememberMouse.insideSetScreen) {
             return; // window resize, not a new screen open
         }
@@ -29,7 +35,7 @@ public abstract class ScreenMixin {
         }
 
         double[] saved = RememberMouse.SAVED_POSITIONS.get("universal_container_cursor");
-        if (saved == null) {
+        if (saved == null || !RememberMouse.isWithinWindow(saved)) {
             return;
         }
 
