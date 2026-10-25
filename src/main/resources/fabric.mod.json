@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "id": "remember-mouse",
+  "id": "menuflow",
   "version": "${version}",
-  "name": "Remember Mouse",
-  "description": "Remembers cursor position when closing inventory/container UIs. Restores position on reopen. Supports multi-page backpacks — mouse stays on page-turn buttons.",
+  "name": "MenuFlow",
+  "description": "Remembers cursor position across inventory and container screens, and safely converts compatible Hypixel SkyBlock UI left-clicks into middle-clicks to prevent display items from being picked up.",
   "authors": ["cookie"],
   "contact": {},
   "license": "MIT",
-  "icon": "assets/remember-mouse/icon.png",
+  "icon": "assets/menuflow/icon.png",
   "environment": "client",
   "entrypoints": {
     "client": ["com.remembermouse.RememberMouse"]
@@ -16,8 +16,8 @@
     "remember-mouse.mixins.json"
   ],
   "depends": {
-    "fabricloader": ">=0.16.0",
-    "minecraft": ">=26.1",
+    "fabricloader": ">=0.19.5",
+    "minecraft": ">=26.3 <26.4",
     "java": ">=25"
   }
 }

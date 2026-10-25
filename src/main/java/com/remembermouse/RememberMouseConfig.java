@@ -11,9 +11,11 @@ import java.nio.file.Path;
 public class RememberMouseConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
+        FabricLoader.getInstance().getConfigDir().resolve("menuflow").resolve("menuflow.json");
+    private static final Path LEGACY_CONFIG_PATH =
         FabricLoader.getInstance().getConfigDir().resolve("remember-mouse").resolve("remember-mouse.json");
 
-    /** Master toggle — when false, cursor positions are neither saved nor restored. */
+    /** Master toggle for cursor memory and safe SkyBlock UI click replacement. */
     public boolean enabled = true;
 
     /**
@@ -24,9 +26,10 @@ public class RememberMouseConfig {
 
     public static RememberMouseConfig load() {
         RememberMouseConfig config = new RememberMouseConfig();
-        if (Files.exists(CONFIG_PATH)) {
+        Path loadPath = Files.exists(CONFIG_PATH) ? CONFIG_PATH : LEGACY_CONFIG_PATH;
+        if (Files.exists(loadPath)) {
             try {
-                String json = Files.readString(CONFIG_PATH);
+                String json = Files.readString(loadPath);
                 RememberMouseConfig loaded = GSON.fromJson(json, RememberMouseConfig.class);
                 if (loaded != null) {
                     config = loaded;
@@ -34,10 +37,14 @@ public class RememberMouseConfig {
                     if (config.memoryWindowSeconds < 0) {
                         config.memoryWindowSeconds = 0;
                     }
-                    RememberMouse.LOGGER.info("[RememberMouse] Config loaded from {}", CONFIG_PATH);
+                    RememberMouse.LOGGER.info("[MenuFlow] Config loaded from {}", loadPath);
+                    if (loadPath.equals(LEGACY_CONFIG_PATH)) {
+                        config.save();
+                        RememberMouse.LOGGER.info("[MenuFlow] Legacy Remember Mouse config migrated to {}", CONFIG_PATH);
+                    }
                 }
             } catch (IOException e) {
-                RememberMouse.LOGGER.warn("[RememberMouse] Failed to read config, using defaults: {}", e.getMessage());
+                RememberMouse.LOGGER.warn("[MenuFlow] Failed to read config, using defaults: {}", e.getMessage());
             }
         } else {
             config.save();
@@ -49,9 +56,9 @@ public class RememberMouseConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             Files.writeString(CONFIG_PATH, GSON.toJson(this));
-            RememberMouse.LOGGER.info("[RememberMouse] Config saved to {}", CONFIG_PATH);
+            RememberMouse.LOGGER.info("[MenuFlow] Config saved to {}", CONFIG_PATH);
         } catch (IOException e) {
-            RememberMouse.LOGGER.warn("[RememberMouse] Failed to save config: {}", e.getMessage());
+            RememberMouse.LOGGER.warn("[MenuFlow] Failed to save config: {}", e.getMessage());
         }
     }
 }

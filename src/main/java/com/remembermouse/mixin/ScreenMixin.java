@@ -2,10 +2,10 @@ package com.remembermouse.mixin;
 
 import com.remembermouse.RememberMouse;
 import com.remembermouse.RememberMouseConfig;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -18,10 +18,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Screen.class)
 public abstract class ScreenMixin {
 
-    @Inject(method = "init", at = @At("TAIL"))
+    @Inject(method = "init()V", at = @At("TAIL"))
     private void afterInit(CallbackInfo ci) {
         RememberMouseConfig cfg = RememberMouse.config;
-        if (!cfg.enabled) {
+        if (cfg == null || !cfg.enabled) {
             return;
         }
 
@@ -40,13 +40,12 @@ public abstract class ScreenMixin {
         }
 
         Minecraft mc = Minecraft.getInstance();
-        long window = mc.getWindow().handle();
 
         int maxX = mc.getWindow().getWidth() - 1;
         int maxY = mc.getWindow().getHeight() - 1;
         double clampedX = Math.max(0, Math.min(saved[0], maxX));
         double clampedY = Math.max(0, Math.min(saved[1], maxY));
 
-        GLFW.glfwSetCursorPos(window, clampedX, clampedY);
+        InputConstants.releaseMouse(mc.getWindow(), clampedX, clampedY);
     }
 }

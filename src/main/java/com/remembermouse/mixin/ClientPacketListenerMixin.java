@@ -5,104 +5,84 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
-import com.mojang.brigadier.tree.RootCommandNode;
 import com.remembermouse.RememberMouse;
 import com.remembermouse.RememberMouseConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.ClientSuggestionProvider;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundCommandsPacket;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ClientPacketListener.class)
 public abstract class ClientPacketListenerMixin {
-
-    // ── Build remembermouse command tree ──────────────────────
-    private static LiteralCommandNode<ClientSuggestionProvider> rmBuildNode() {
-        LiteralArgumentBuilder<ClientSuggestionProvider> rm =
-            LiteralArgumentBuilder.<ClientSuggestionProvider>literal("remembermouse")
-                .executes(ctx -> 1)
+    private static LiteralCommandNode<ClientSuggestionProvider> rmBuildNode(String commandName) {
+        LiteralArgumentBuilder<ClientSuggestionProvider> menuFlow =
+            LiteralArgumentBuilder.<ClientSuggestionProvider>literal(commandName)
+                .executes(context -> 1)
                 .then(LiteralArgumentBuilder.<ClientSuggestionProvider>literal("toggle")
-                    .executes(ctx -> 1))
+                    .executes(context -> 1))
                 .then(LiteralArgumentBuilder.<ClientSuggestionProvider>literal("window")
-                    .executes(ctx -> 1)
-                    .then(RequiredArgumentBuilder.<ClientSuggestionProvider, Integer>argument("seconds", IntegerArgumentType.integer(0))
-                        .executes(ctx -> 1)));
-        return rm.build();
+                    .executes(context -> 1)
+                    .then(RequiredArgumentBuilder.<ClientSuggestionProvider, Integer>argument(
+                        "seconds", IntegerArgumentType.integer(0)).executes(context -> 1)));
+        return menuFlow.build();
     }
 
-    // ── Inject into root BEFORE dispatcher creation via ModifyArg ──
-    // Uses ModifyArg on CommandDispatcher.<init> to avoid @Redirect conflict with other mods.
-    @ModifyArg(
-        method = "handleCommands",
-        at = @At(
-            value = "INVOKE",
-            target = "Lcom/mojang/brigadier/CommandDispatcher;<init>(Lcom/mojang/brigadier/tree/RootCommandNode;)V"
-        ),
-        index = 0
-    )
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    private RootCommandNode rmInjectNode(RootCommandNode root) {
-        root.addChild(rmBuildNode());
-        return root;
-    }
-
-    // ── Fallback for edge-cases ──────────────────────────────
+    // Register after the server command tree is built, matching BowTimer and ItemProtector.
     @Inject(method = "handleCommands", at = @At("TAIL"))
     private void rmOnHandleCommands(ClientboundCommandsPacket packet, CallbackInfo ci) {
         CommandDispatcher<ClientSuggestionProvider> dispatcher =
             ((ClientPacketListener) (Object) this).getCommands();
-        if (dispatcher.getRoot().getChild("remembermouse") == null) {
-            dispatcher.register(LiteralArgumentBuilder.<ClientSuggestionProvider>literal("remembermouse")
-                .redirect(rmBuildNode()));
+        rmRegisterCommand(dispatcher, "menuflow");
+        rmRegisterCommand(dispatcher, "remembermouse");
+    }
+
+    private static void rmRegisterCommand(CommandDispatcher<ClientSuggestionProvider> dispatcher,
+                                          String commandName) {
+        if (dispatcher.getRoot().getChild(commandName) == null) {
+            dispatcher.getRoot().addChild(rmBuildNode(commandName));
         }
     }
 
-    // ── Intercept & cancel server-bound command ───────────────
     @Inject(method = "sendCommand", at = @At("HEAD"), cancellable = true)
     private void rmOnSendCommand(String command, CallbackInfo ci) {
         String trimmed = command.startsWith("/") ? command.substring(1).trim() : command.trim();
 
-        if (trimmed.equals("remembermouse") || trimmed.startsWith("remembermouse ")) {
-            ci.cancel();
+        String[] parts = trimmed.split(" +");
+        if (parts.length == 0
+            || (!parts[0].equals("menuflow") && !parts[0].equals("remembermouse"))) return;
 
-            String[] parts = trimmed.split(" +");
-            if (parts.length < 2) return;
+        ci.cancel();
+        if (parts.length < 2) return;
 
-            switch (parts[1]) {
-                case "toggle" -> rmHandleToggle();
-                case "window" -> rmHandleWindow(parts);
-            }
+        switch (parts[1]) {
+            case "toggle" -> rmHandleToggle();
+            case "window" -> rmHandleWindow(parts);
         }
     }
 
-    private void rmHandleToggle() {
-        RememberMouseConfig cfg = RememberMouse.config;
-        cfg.enabled = !cfg.enabled;
-        cfg.save();
+    private static void rmHandleToggle() {
+        RememberMouseConfig config = RememberMouse.config;
+        config.enabled = !config.enabled;
+        config.save();
 
-        if (Minecraft.getInstance().player != null) {
-            Minecraft.getInstance().player.sendSystemMessage(
-                net.minecraft.network.chat.Component.literal(
-                    cfg.enabled ? "§a[RememberMouse] §fEnabled" : "§c[RememberMouse] §fDisabled"));
-        }
+        send(Component.literal(
+            config.enabled ? "§a[MenuFlow] §fEnabled" : "§c[MenuFlow] §fDisabled"));
     }
 
-    private void rmHandleWindow(String[] parts) {
-        RememberMouseConfig cfg = RememberMouse.config;
+    private static void rmHandleWindow(String[] parts) {
+        RememberMouseConfig config = RememberMouse.config;
 
         if (parts.length == 2) {
-            if (Minecraft.getInstance().player != null) {
-                String msg = cfg.memoryWindowSeconds == 0
-                    ? "§a[RememberMouse] §fMemory window: §ePermanent"
-                    : String.format("§a[RememberMouse] §fMemory window: §e%d seconds", cfg.memoryWindowSeconds);
-                Minecraft.getInstance().player.sendSystemMessage(
-                    net.minecraft.network.chat.Component.literal(msg));
-            }
+            String message = config.memoryWindowSeconds == 0
+                ? "§a[MenuFlow] §fMemory window: §ePermanent"
+                : String.format("§a[MenuFlow] §fMemory window: §e%d seconds",
+                    config.memoryWindowSeconds);
+            send(Component.literal(message));
             return;
         }
 
@@ -111,24 +91,25 @@ public abstract class ClientPacketListenerMixin {
         try {
             int seconds = Integer.parseInt(parts[2]);
             if (seconds < 0) {
-                if (Minecraft.getInstance().player != null) {
-                    Minecraft.getInstance().player.sendSystemMessage(
-                        net.minecraft.network.chat.Component.literal(
-                            "§c[RememberMouse] Memory window must be ≥ 0 (0 = permanent)"));
-                }
+                send(Component.literal("§c[MenuFlow] Memory window must be ≥ 0 (0 = permanent)"));
                 return;
             }
 
-            cfg.memoryWindowSeconds = seconds;
-            cfg.save();
+            config.memoryWindowSeconds = seconds;
+            config.save();
 
-            if (Minecraft.getInstance().player != null) {
-                String msg = seconds == 0
-                    ? "§a[RememberMouse] §fMemory window set to: §ePermanent"
-                    : String.format("§a[RememberMouse] §fMemory window set to: §e%d seconds", seconds);
-                Minecraft.getInstance().player.sendSystemMessage(
-                    net.minecraft.network.chat.Component.literal(msg));
-            }
-        } catch (NumberFormatException ignored) {}
+            String message = seconds == 0
+                ? "§a[MenuFlow] §fMemory window set to: §ePermanent"
+                : String.format("§a[MenuFlow] §fMemory window set to: §e%d seconds", seconds);
+            send(Component.literal(message));
+        } catch (NumberFormatException ignored) {
+            // Brigadier prevents invalid values from normal command entry.
+        }
+    }
+
+    private static void send(Component message) {
+        if (Minecraft.getInstance().player != null) {
+            Minecraft.getInstance().player.sendSystemMessage(message);
+        }
     }
 }
